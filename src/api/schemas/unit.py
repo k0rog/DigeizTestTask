@@ -1,38 +1,38 @@
 from marshmallow import fields, Schema, validate, validates, ValidationError
 
-from api.schemas.mall import MallRetrieveSchema
 
-
-class BaseAccountSchema(Schema):
+class BaseUnitSchema(Schema):
     id = fields.Integer()
     name = fields.String(
-        validate=validate.Length(max=255)
+        validate=validate.Length(max=255),
     )
 
 
-class AccountCreateSchema(BaseAccountSchema):
+class UnitCreateSchema(BaseUnitSchema):
     class Meta:
         dump_only = ('id',)
-
+    mall_id = fields.Integer(required=True)
     name = fields.String(
         validate=validate.Length(max=255),
         required=True
     )
 
 
-class AccountUpdateSchema(BaseAccountSchema):
+class UnitUpdateSchema(BaseUnitSchema):
     class Meta:
         dump_only = ('id',)
 
 
-class AccountRetrieveSchema(BaseAccountSchema):
-    malls = fields.Nested(MallRetrieveSchema(), exclude=('units',), many=True)
+class UnitRetrieveSchema(BaseUnitSchema):
+    class Meta:
+        dump_only = ('all',)
+    mall_id = fields.Integer()
 
 
-class AccountListSchema(Schema):
+class UnitListSchema(Schema):
     class Meta:
         load_only = ('page', 'per_page')
-        dump_only = ('accounts', 'total')
+        dump_only = ('units', 'total')
 
     page = fields.Integer()
     per_page = fields.Integer(
@@ -40,7 +40,7 @@ class AccountListSchema(Schema):
     )
 
     total = fields.Integer()
-    accounts = fields.Nested(AccountRetrieveSchema(), many=True, exclude=('malls',))
+    units = fields.Nested(UnitRetrieveSchema(), many=True)
 
     @validates('page')
     def validate_page(self, value):

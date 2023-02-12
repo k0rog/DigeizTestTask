@@ -1,10 +1,10 @@
-from http import HTTPStatus
-
 from flask import jsonify, make_response
 
 
 class AppException(Exception):
     """Base exception to be caught"""
+    http_code = 400
+
     def __init__(self, message):
         self.message = message
 
@@ -30,7 +30,7 @@ class AccessDeniedException(AppException):
 
 
 def app_exception_handler(exception):
-    http_code = exception.http_code or 400
+    http_code = exception.http_code
     r = make_response(
         {'error': str(exception)}, http_code
     )

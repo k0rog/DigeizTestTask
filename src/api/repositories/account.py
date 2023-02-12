@@ -1,4 +1,4 @@
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, joinedload
 from injector import inject
 
 from api.models.account import Account
@@ -70,7 +70,7 @@ class AccountRepository:
         with self._session.begin() as session:
             account = session.query(
                 Account
-            ).get(account_id)
+            ).options(joinedload('malls')).get(account_id)
 
         if not account:
             raise DoesNotExistException('Account does not exist!')

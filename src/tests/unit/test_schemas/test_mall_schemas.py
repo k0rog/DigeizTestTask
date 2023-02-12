@@ -2,25 +2,26 @@ import json
 import marshmallow.exceptions
 import pytest
 
-from api.schemas.account import (
-    AccountCreateSchema,
-    AccountListSchema,
-    AccountUpdateSchema,
-    AccountRetrieveSchema,
+from api.schemas.mall import (
+    MallCreateSchema,
+    MallListSchema,
+    MallUpdateSchema,
+    MallRetrieveSchema,
 )
 
+
 ACCOUNT_ID = 1
-ACCOUNT_NAME = 'account_name'
+ACCOUNT_NAME = 'mall_name'
 
 
 ACCOUNT_DATA = {
-    'name': 'account_name',
+    'name': 'mall_name',
 }
 
 
-class TestAccountCreateSchema:
+class TestMallCreateSchema:
     def test_with_valid_data(self):
-        schema = AccountCreateSchema()
+        schema = MallCreateSchema()
 
         data = schema.loads(json.dumps(ACCOUNT_DATA))
 
@@ -33,7 +34,7 @@ class TestAccountCreateSchema:
         )
     )
     def test_field_is_not_loaded(self, field, value):
-        schema = AccountCreateSchema()
+        schema = MallCreateSchema()
 
         create_data = ACCOUNT_DATA.copy()
         create_data[field] = value
@@ -48,7 +49,7 @@ class TestAccountCreateSchema:
         )
     )
     def test_id_is_dumped(self, field, value):
-        schema = AccountCreateSchema()
+        schema = MallCreateSchema()
 
         validated_data = ACCOUNT_DATA.copy()
         validated_data[field] = value
@@ -63,7 +64,7 @@ class TestAccountCreateSchema:
         wrong_data = ACCOUNT_DATA.copy()
         wrong_data[field] = value
 
-        schema = AccountCreateSchema()
+        schema = MallCreateSchema()
 
         with pytest.raises(marshmallow.exceptions.ValidationError) as exception_info:
             schema.loads(json.dumps(wrong_data))
@@ -74,9 +75,9 @@ class TestAccountCreateSchema:
         assert error_message_dict[field][0] == f'Not a valid string.'
 
 
-class TestAccountUpdateSchema:
+class TestMallUpdateSchema:
     def test_with_valid_data(self):
-        schema = AccountUpdateSchema()
+        schema = MallUpdateSchema()
 
         data = schema.loads(json.dumps(ACCOUNT_DATA))
 
@@ -89,7 +90,7 @@ class TestAccountUpdateSchema:
         )
     )
     def test_field_is_not_loaded(self, field, value):
-        schema = AccountCreateSchema()
+        schema = MallCreateSchema()
 
         create_data = ACCOUNT_DATA.copy()
         create_data[field] = value
@@ -104,7 +105,7 @@ class TestAccountUpdateSchema:
         )
     )
     def test_field_is_dumped(self, field, value):
-        schema = AccountCreateSchema()
+        schema = MallCreateSchema()
 
         validated_data = ACCOUNT_DATA.copy()
         validated_data[field] = value
@@ -119,7 +120,7 @@ class TestAccountUpdateSchema:
         wrong_data = ACCOUNT_DATA.copy()
         wrong_data[field] = value
 
-        schema = AccountUpdateSchema()
+        schema = MallUpdateSchema()
 
         with pytest.raises(marshmallow.exceptions.ValidationError) as exception_info:
             schema.loads(json.dumps(wrong_data))
@@ -130,22 +131,22 @@ class TestAccountUpdateSchema:
         assert error_message_dict[field][0] == f'Not a valid string.'
 
 
-class TestAccountRetrieveSchema:
+class TestMallRetrieveSchema:
     def test_dump_schema(self):
-        schema = AccountRetrieveSchema()
+        schema = MallRetrieveSchema()
 
-        account_data = ACCOUNT_DATA.copy()
-        account_data['id'] = 1
+        mall_data = ACCOUNT_DATA.copy()
+        mall_data['id'] = 1
 
-        retrieve_data = schema.dumps(account_data)
+        retrieve_data = schema.dumps(mall_data)
 
         assert 'id' in retrieve_data
         assert 'name' in retrieve_data
 
 
-class TestAccountListSchema:
+class TestMallListSchema:
     def test_valid_load(self):
-        schema = AccountListSchema()
+        schema = MallListSchema()
 
         schema.loads(json.dumps({
             'page': 1,
@@ -153,7 +154,7 @@ class TestAccountListSchema:
         }))
 
     def test_with_negative_page(self):
-        schema = AccountListSchema()
+        schema = MallListSchema()
         data = {
             'page': -1,
             'per_page': 10
@@ -163,7 +164,7 @@ class TestAccountListSchema:
             schema.loads(json.dumps(data))
 
     def test_with_negative_per_page(self):
-        schema = AccountListSchema()
+        schema = MallListSchema()
         data = {
             'page': 1,
             'per_page': -1
@@ -173,7 +174,7 @@ class TestAccountListSchema:
             schema.loads(json.dumps(data))
 
     def test_with_too_big_per_page(self):
-        schema = AccountListSchema()
+        schema = MallListSchema()
         data = {
             'page': 1,
             'per_page': 100
@@ -183,12 +184,12 @@ class TestAccountListSchema:
             schema.loads(json.dumps(data))
 
     def test_valid_dump(self):
-        schema = AccountListSchema()
+        schema = MallListSchema()
         data = {
             'total': 100,
-            'accounts': [{
+            'malls': [{
                 'id': i,
-                'name': f'Account-{i}'
+                'name': f'Mall-{i}'
             } for i in range(5)],
         }
 

@@ -1,7 +1,3 @@
-import os
-
-from flask import current_app
-from flask_sqlalchemy import SQLAlchemy
 from injector import Binder, Module, singleton
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker

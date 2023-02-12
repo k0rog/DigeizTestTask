@@ -1,8 +1,3 @@
-from dotenv import load_dotenv
-
-load_dotenv('../.env.test')
-
-
 import pytest
 
 from sqlalchemy.orm import sessionmaker
@@ -10,8 +5,14 @@ from testing.postgresql import Postgresql
 from sqlalchemy import create_engine
 
 from api.app import create_app
+
 from api.repositories.account import AccountRepository
+from api.repositories.mall import MallRepository
+from api.repositories.unit import UnitRepository
 from api.services.account import AccountService
+from api.services.mall import MallService
+from api.services.unit import UnitService
+
 from api.extensions import db as _db
 from api.config import get_config_class
 
@@ -30,7 +31,7 @@ def sqlalchemy_database_url():
 @pytest.fixture(scope='session')
 def app(sqlalchemy_database_url):
 
-    config_class = get_config_class()
+    config_class = get_config_class('.env.test')
     config_class.SQLALCHEMY_DATABASE_URI = sqlalchemy_database_url
 
     app = create_app(config_class)
@@ -43,7 +44,7 @@ def app(sqlalchemy_database_url):
         yield app
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='module')
 def engine(app):
     engine = create_engine(app.config.get('SQLALCHEMY_DATABASE_URI'))
 
@@ -56,24 +57,12 @@ def engine(app):
     _db.drop_all()
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='module')
 def connection(engine):
     connection = engine.connect()
     yield connection
     connection.close()
 
-
-# @pytest.fixture(scope='function')
-# async def session(connection):
-#     trans = await connection.begin()
-#     session = scoped_session(
-#         sessionmaker(
-#             connection, class_=AsyncSession, expire_on_commit=False
-#         )
-#     )
-#
-#     yield session
-#     await trans.rollback()
 
 @pytest.fixture(scope='function')
 def session(connection):
@@ -85,13 +74,13 @@ def session(connection):
     trans.rollback()
 
 
-# @pytest.fixture(scope='function')
-# def client(app, storage):
-#     client = app.test_client()
-#
-#     yield client
-#
-#
+@pytest.fixture(scope='function')
+def client(app, engine):
+    client = app.test_client()
+
+    yield client
+
+
 @pytest.fixture(scope='function')
 def account_repository(session) -> AccountRepository:
     repository = AccountRepository(
@@ -108,71 +97,90 @@ def account_service(account_repository) -> AccountService:
     )
 
     yield service
-#
-#
-# @pytest.fixture(scope='function')
-# def bank_card_repository(storage) -> BankCardRepository:
-#     repository = BankCardRepository(
-#         storage=storage,
-#     )
-#
-#     yield repository
-#
-#
-# @pytest.fixture(scope='session')
-# def permanent_session(db):
-#     session = db.session
-#     yield session
-#     session.close()
-#
-#
-# @pytest.fixture(scope='session')
-# def bank_account(permanent_session):
-#     while True:
-#         try:
-#             bank_account = BankAccount(
-#                 currency='BYN',
-#                 balance=0,
-#             )
-#
-#             permanent_session.add(bank_account)
-#             permanent_session.commit()
-#
-#             break
-#         except IntegrityError:
-#             '''There's very small chance to generate duplicated IBAN
-#             But since this chance still exists, we have to repeat the operation'''
-#             permanent_session.rollback()
-#         except SQLAlchemyError:
-#             permanent_session.rollback()
-#             raise
-#
-#     association_row = AssociationBankAccountCustomer(
-#         bank_account_id=bank_account.IBAN,
-#         customer_id='MockUUID'
-#     )
-#
-#     permanent_session.add(association_row)
-#     permanent_session.commit()
-#
-#     yield bank_account
-#
-#
-# @pytest.fixture(scope='session')
-# def customer(permanent_session):
-#     customer = Customer(
-#         first_name='John',
-#         last_name='Smith',
-#         email='jsmith@gmail.com',
-#         passport_number='HB2222222',
-#     )
-#
-#     permanent_session.add(customer)
-#
-#     try:
-#         permanent_session.commit()
-#     except SQLAlchemyError:
-#         permanent_session.rollback()
-#         raise
-#
-#     yield customer
+
+
+@pytest.fixture(scope='session')
+def unique_account_iterator():
+    def unique_account_generator():
+        i = 1
+        while True:
+            yield {
+                'name': f'name-{i}'
+            }
+            i += 1
+    yield unique_account_generator()
+
+
+@pytest.fixture(scope='function')
+def unique_account(unique_account_iterator) -> dict:
+    yield next(unique_account_iterator)
+
+
+@pytest.fixture(scope='function')
+def mall_repository(session) -> MallRepository:
+    repository = MallRepository(
+        session=session,
+    )
+
+    yield repository
+
+
+@pytest.fixture(scope='function')
+def mall_service(mall_repository) -> MallService:
+    service = MallService(
+        mall_repository=mall_repository,
+    )
+
+    yield service
+
+
+@pytest.fixture(scope='session')
+def unique_mall_iterator():
+    def unique_mall_generator():
+        i = 1
+        while True:
+            yield {
+                'name': f'name-{i}'
+            }
+            i += 1
+    yield unique_mall_generator()
+
+
+@pytest.fixture(scope='function')
+def unique_mall(unique_mall_iterator) -> dict:
+    yield next(unique_mall_iterator)
+    
+
+@pytest.fixture(scope='function')
+def unit_repository(session) -> UnitRepository:
+    repository = UnitRepository(
+        session=session,
+    )
+
+    yield repository
+
+
+@pytest.fixture(scope='function')
+def unit_service(unit_repository) -> UnitService:
+    service = UnitService(
+        unit_repository=unit_repository,
+    )
+
+    yield service
+
+
+@pytest.fixture(scope='session')
+def unique_unit_iterator():
+    def unique_unit_generator():
+        i = 1
+        while True:
+            yield {
+                'name': f'name-{i}'
+            }
+            i += 1
+    yield unique_unit_generator()
+
+
+@pytest.fixture(scope='function')
+def unique_unit(unique_unit_iterator) -> dict:
+    yield next(unique_unit_iterator)

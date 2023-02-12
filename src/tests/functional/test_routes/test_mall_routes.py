@@ -1,52 +1,52 @@
 import pytest
 from http import HTTPStatus
 
-from api.models.account import Account
+from api.models.mall import Mall
 
 
 ACCOUNT_DATA = {
-    'name': 'my_first_account',
+    'name': 'my_first_mall',
 }
 
 
 class TestCreate:
-    URL = '/api/accounts/'
+    URL = '/api/malls/'
 
-    def test_is_id_returned(self, client, unique_account):
-        response = client.post(self.URL, json=unique_account)
+    def test_is_id_returned(self, client, unique_mall):
+        response = client.post(self.URL, json=unique_mall)
 
         assert response.status_code == HTTPStatus.CREATED
         assert 'id' in response.json
 
-    def test_create(self, client, session, unique_account):
-        response = client.post(self.URL, json=unique_account)
+    def test_create(self, client, session, unique_mall):
+        response = client.post(self.URL, json=unique_mall)
         assert response.status_code == HTTPStatus.CREATED
 
         with session.begin() as session:
-            storage_account = session.query(
-                Account
+            storage_mall = session.query(
+                Mall
             ).get(response.json['id'])
 
-        assert storage_account is not None
-        assert storage_account.name == unique_account['name']
+        assert storage_mall is not None
+        assert storage_mall.name == unique_mall['name']
 
-    def test_for_duplicated_name(self, client, unique_account):
-        client.post(self.URL, json=unique_account)
-        response = client.post(self.URL, json=unique_account)
+    def test_for_duplicated_name(self, client, unique_mall):
+        client.post(self.URL, json=unique_mall)
+        response = client.post(self.URL, json=unique_mall)
 
         assert response.status_code == HTTPStatus.BAD_REQUEST
         assert 'error' in response.json
-        assert response.json['error'] == 'Account already exists!'
+        assert response.json['error'] == 'Mall already exists!'
 
     @pytest.mark.parametrize(
         'field,value',
         (
                 ('name', 123),
         ))
-    def test_with_invalid_data(self, client, field, value, unique_account):
-        unique_account[field] = value
+    def test_with_invalid_data(self, client, field, value, unique_mall):
+        unique_mall[field] = value
 
-        response = client.post(self.URL, json=unique_account)
+        response = client.post(self.URL, json=unique_mall)
 
         assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
         assert 'errors' in response.json
@@ -54,57 +54,57 @@ class TestCreate:
 
 
 class TestUpdate:
-    URL = '/api/accounts/'
+    URL = '/api/malls/'
 
-    def test_update(self, client, session, unique_account):
-        account_id = client.post(self.URL, json=unique_account).json['id']
+    def test_update(self, client, session, unique_mall):
+        mall_id = client.post(self.URL, json=unique_mall).json['id']
 
         update_data = {
             'name': 'updated_name',
         }
 
         response = client.patch(
-            self.URL + str(account_id),
+            self.URL + str(mall_id),
             json=update_data
         )
 
         with session.begin() as session:
-            storage_account = session.query(
-                Account
-            ).get(account_id)
+            storage_mall = session.query(
+                Mall
+            ).get(mall_id)
 
         assert response.status_code == HTTPStatus.NO_CONTENT
-        assert storage_account.name == update_data['name']
+        assert storage_mall.name == update_data['name']
 
-    def test_for_duplicated_name(self, client, unique_account):
-        client.post(self.URL, json=unique_account)
+    def test_for_duplicated_name(self, client, unique_mall):
+        client.post(self.URL, json=unique_mall)
 
-        second_account_data = unique_account.copy()
-        second_account_data.update({
-            'name': 'second_account_name'
+        second_mall_data = unique_mall.copy()
+        second_mall_data.update({
+            'name': 'second_mall_name'
         })
-        response = client.post(self.URL, json=second_account_data)
+        response = client.post(self.URL, json=second_mall_data)
 
         update_response = client.patch(
             self.URL + str(response.json['id']),
-            json={'name': unique_account['name']}
+            json={'name': unique_mall['name']}
         )
 
         assert update_response.status_code == HTTPStatus.BAD_REQUEST
         assert 'error' in update_response.json
-        assert update_response.json['error'] == 'Account already exists!'
+        assert update_response.json['error'] == 'Mall already exists!'
 
     @pytest.mark.parametrize(
         'field,value',
         (
                 ('name', 123),
         ))
-    def test_with_invalid_data(self, client, unique_account, field, value):
-        account_id = client.post(self.URL, json=unique_account).json['id']
+    def test_with_invalid_data(self, client, unique_mall, field, value):
+        mall_id = client.post(self.URL, json=unique_mall).json['id']
 
         update_data = {field: value}
 
-        response = client.patch(self.URL + str(account_id), json=update_data)
+        response = client.patch(self.URL + str(mall_id), json=update_data)
 
         assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
         assert 'errors' in response.json
@@ -112,19 +112,19 @@ class TestUpdate:
 
 
 class TestDelete:
-    URL = '/api/accounts/'
+    URL = '/api/malls/'
 
-    def test_delete(self, client, session, unique_account):
-        account_id = client.post(self.URL, json=unique_account).json['id']
+    def test_delete(self, client, session, unique_mall):
+        mall_id = client.post(self.URL, json=unique_mall).json['id']
 
-        response = client.delete(self.URL + str(account_id))
+        response = client.delete(self.URL + str(mall_id))
 
         assert response.status_code == HTTPStatus.NO_CONTENT
 
         with session.begin() as session:
             assert session.query(
-                Account.id
-            ).filter_by(id=account_id).first() is None
+                Mall.id
+            ).filter_by(id=mall_id).first() is None
 
     def test_delete_nonexistent_customer(self, client):
         response = client.delete(self.URL + str(10000))
@@ -133,31 +133,31 @@ class TestDelete:
 
 
 class TestGet:
-    URL = '/api/accounts/'
+    URL = '/api/malls/'
 
-    def test_get(self, client, unique_account):
-        account_id = client.post(self.URL, json=unique_account).json['id']
+    def test_get(self, client, unique_mall):
+        mall_id = client.post(self.URL, json=unique_mall).json['id']
 
-        retrieved_account = client.get(
-            self.URL + str(account_id)
+        retrieved_mall = client.get(
+            self.URL + str(mall_id)
         )
 
-        assert retrieved_account.status_code == HTTPStatus.OK
-        assert retrieved_account.json['name'] == unique_account['name']
-        assert retrieved_account.json['id'] == account_id
+        assert retrieved_mall.status_code == HTTPStatus.OK
+        assert retrieved_mall.json['name'] == unique_mall['name']
+        assert retrieved_mall.json['id'] == mall_id
 
-    def test_for_nonexistent_account(self, client):
+    def test_for_nonexistent_mall(self, client):
         response = client.get(
             self.URL + str(1000)
         )
 
         assert response.status_code == 404
         assert 'error' in response.json
-        assert response.json['error'] == 'Account does not exist!'
+        assert response.json['error'] == 'Mall does not exist!'
 
 
 class TestGetList:
-    URL = '/api/accounts/'
+    URL = '/api/malls/'
 
     def test_with_wrong_page(self, client):
         response = client.get(
