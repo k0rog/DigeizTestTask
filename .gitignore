@@ -1,7 +1,7 @@
 /venv/
 .env
 .env.test
-.evn.docker
+.env.docker
 *.pytest_cache/
 /.idea/
 /pgdata/
