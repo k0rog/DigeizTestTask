@@ -3,8 +3,7 @@ from flask_injector import FlaskInjector
 from injector import Injector
 
 from api.dependency_injection import SQLAlchemyModule
-from api.exceptions import (AppException, api_exception_handler,
-                            app_exception_handler)
+from api.exceptions import AppException, api_exception_handler, app_exception_handler
 from api.extensions import db, migrate, api
 from api.config import DefaultConfig
 from api.routes.account import AccountsResource, AccountResource, AccountsBulkResource
@@ -13,7 +12,7 @@ from api.routes.unit import UnitsResource, UnitResource, UnitsBulkResource
 
 
 def create_app(
-        config_class: object = DefaultConfig,
+    config_class: object = DefaultConfig,
 ):
     app = Flask(__name__)
 
@@ -34,8 +33,12 @@ def register_extensions(app):
     from api.models.unit import Unit
 
     api.add_resource(AccountsResource, '/api/accounts/', endpoint='accounts')
-    api.add_resource(AccountResource, '/api/accounts/<int:account_id>', endpoint='account')
-    api.add_resource(AccountsBulkResource, '/api/accounts/bulk', endpoint='accounts_bulk')
+    api.add_resource(
+        AccountResource, '/api/accounts/<int:account_id>', endpoint='account'
+    )
+    api.add_resource(
+        AccountsBulkResource, '/api/accounts/bulk', endpoint='accounts_bulk'
+    )
 
     api.add_resource(MallsResource, '/api/malls/', endpoint='malls')
     api.add_resource(MallResource, '/api/malls/<int:mall_id>', endpoint='mall')
@@ -49,7 +52,7 @@ def register_extensions(app):
     migrate.init_app(app, db)
     api.init_app(app)
 
-    injector = Injector([
-        SQLAlchemyModule(sqlalchemy_url=app.config.get('SQLALCHEMY_DATABASE_URI'))
-    ])
+    injector = Injector(
+        [SQLAlchemyModule(sqlalchemy_url=app.config.get('SQLALCHEMY_DATABASE_URI'))]
+    )
     FlaskInjector(app=app, injector=injector)

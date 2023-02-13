@@ -1,5 +1,3 @@
-import os
-
 from injector import Binder, Module, singleton
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -14,8 +12,7 @@ class SQLAlchemyModule(Module):
 
     def configure(self, binder: Binder):
         session = sessionmaker(
-            create_engine(self.sqlalchemy_url),
-            expire_on_commit=False
+            create_engine(self.sqlalchemy_url), expire_on_commit=False
         )
         binder.bind(interface=sessionmaker, to=session, scope=singleton)
         binder.bind(interface=AccountService, to=AccountService, scope=singleton)
