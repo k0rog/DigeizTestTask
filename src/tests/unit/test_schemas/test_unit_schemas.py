@@ -7,25 +7,26 @@ from api.schemas.unit import (
     UnitListSchema,
     UnitUpdateSchema,
     UnitRetrieveSchema,
+    UnitBulkCreateSchema
 )
 
 
-ACCOUNT_ID = 1
-ACCOUNT_NAME = 'unit_name'
-
-
-ACCOUNT_DATA = {
+UNIT_DATA = {
     'name': 'unit_name',
+    'mall_id': 1
 }
 
 
 class TestUnitCreateSchema:
+    schema_class = UnitCreateSchema
+
     def test_with_valid_data(self):
-        schema = UnitCreateSchema()
+        schema = self.schema_class()
 
-        data = schema.loads(json.dumps(ACCOUNT_DATA))
+        data = schema.loads(json.dumps(UNIT_DATA))
 
-        assert data['name'] == ACCOUNT_DATA['name']
+        assert data['name'] == UNIT_DATA['name']
+        assert data['mall_id'] == UNIT_DATA['mall_id']
 
     @pytest.mark.parametrize(
         'field,value',
@@ -33,38 +34,37 @@ class TestUnitCreateSchema:
                 ('id', 1),
         )
     )
-    def test_field_is_not_loaded(self, field, value):
-        schema = UnitCreateSchema()
+    def test_for_not_loaded_fields(self, field, value):
+        schema = self.schema_class()
 
-        create_data = ACCOUNT_DATA.copy()
+        create_data = UNIT_DATA.copy()
         create_data[field] = value
 
         with pytest.raises(marshmallow.exceptions.ValidationError):
             schema.loads(json.dumps(create_data))
 
-    @pytest.mark.parametrize(
-        'field,value',
-        (
-                ('id', 1),
-        )
-    )
-    def test_id_is_dumped(self, field, value):
-        schema = UnitCreateSchema()
+    def test_id_is_dumped(self):
+        schema = self.schema_class()
 
-        validated_data = ACCOUNT_DATA.copy()
-        validated_data[field] = value
+        validated_data = UNIT_DATA.copy()
+        validated_data['id'] = 1
 
         return_data = schema.dump(validated_data)
 
-        assert field in return_data
+        assert 'id' in return_data
 
-    @pytest.mark.parametrize('field', ('name',))
-    @pytest.mark.parametrize('value', (1,))
+    @pytest.mark.parametrize(
+        'field, value',
+        (
+                ('name', 1),
+                ('mall_id', 'str')
+        )
+    )
     def test_with_wrong_type(self, field, value):
-        wrong_data = ACCOUNT_DATA.copy()
+        wrong_data = UNIT_DATA.copy()
         wrong_data[field] = value
 
-        schema = UnitCreateSchema()
+        schema = self.schema_class()
 
         with pytest.raises(marshmallow.exceptions.ValidationError) as exception_info:
             schema.loads(json.dumps(wrong_data))
@@ -72,52 +72,48 @@ class TestUnitCreateSchema:
         error_message_dict = exception_info.value.messages
         assert len(error_message_dict) == 1
         assert field in error_message_dict
-        assert error_message_dict[field][0] == f'Not a valid string.'
+
+    def test_with_invalid_name(self):
+        wrong_data = UNIT_DATA.copy()
+        wrong_data['name'] = ''.join(['_' for _ in range(257)])
+
+        schema = self.schema_class()
+
+        with pytest.raises(marshmallow.exceptions.ValidationError) as exception_info:
+            schema.loads(json.dumps(wrong_data))
+
+        error_message_dict = exception_info.value.messages
+        assert len(error_message_dict) == 1
+        assert 'name' in error_message_dict
+        assert error_message_dict['name'][0] == f'Longer than maximum length 255.'
 
 
 class TestUnitUpdateSchema:
+    schema_class = UnitUpdateSchema
+
     def test_with_valid_data(self):
-        schema = UnitUpdateSchema()
+        schema = self.schema_class(partial=True)
 
-        data = schema.loads(json.dumps(ACCOUNT_DATA))
+        data = schema.loads(json.dumps({'name': 'unit_name'}))
 
-        assert data['name'] == ACCOUNT_DATA['name']
+        assert data['name'] == UNIT_DATA['name']
 
-    @pytest.mark.parametrize(
-        'field,value',
-        (
-                ('id', 1),
-        )
-    )
-    def test_field_is_not_loaded(self, field, value):
-        schema = UnitCreateSchema()
+    def test_partial(self):
+        schema = self.schema_class(partial=True)
 
-        create_data = ACCOUNT_DATA.copy()
-        create_data[field] = value
-
-        with pytest.raises(marshmallow.exceptions.ValidationError):
-            schema.loads(json.dumps(create_data))
+        data = {}
+        schema.loads(json.dumps(data))
 
     @pytest.mark.parametrize(
-        'field,value',
+        'field, value',
         (
-                ('id', 1),
+                ('name', 1),
+                ('mall_id', 'str')
         )
     )
-    def test_field_is_dumped(self, field, value):
-        schema = UnitCreateSchema()
-
-        validated_data = ACCOUNT_DATA.copy()
-        validated_data[field] = value
-
-        return_data = schema.dump(validated_data)
-
-        assert field in return_data
-
-    @pytest.mark.parametrize('field', ('name',))
-    @pytest.mark.parametrize('value', (1,))
     def test_with_wrong_type(self, field, value):
-        wrong_data = ACCOUNT_DATA.copy()
+        wrong_data = UNIT_DATA.copy()
+        del wrong_data['mall_id']
         wrong_data[field] = value
 
         schema = UnitUpdateSchema()
@@ -128,25 +124,29 @@ class TestUnitUpdateSchema:
         error_message_dict = exception_info.value.messages
         assert len(error_message_dict) == 1
         assert field in error_message_dict
-        assert error_message_dict[field][0] == f'Not a valid string.'
 
 
 class TestUnitRetrieveSchema:
     def test_dump_schema(self):
         schema = UnitRetrieveSchema()
 
-        unit_data = ACCOUNT_DATA.copy()
-        unit_data['id'] = 1
+        unit_data = UNIT_DATA.copy()
+        unit_data.update({
+            'id': 1,
+        })
 
-        retrieve_data = schema.dumps(unit_data)
+        retrieve_data = json.loads(schema.dumps(unit_data))
 
         assert 'id' in retrieve_data
         assert 'name' in retrieve_data
+        assert 'mall_id' in retrieve_data
 
 
 class TestUnitListSchema:
+    schema_class = UnitListSchema
+
     def test_valid_load(self):
-        schema = UnitListSchema()
+        schema = self.schema_class()
 
         schema.loads(json.dumps({
             'page': 1,
@@ -154,7 +154,7 @@ class TestUnitListSchema:
         }))
 
     def test_with_negative_page(self):
-        schema = UnitListSchema()
+        schema = self.schema_class()
         data = {
             'page': -1,
             'per_page': 10
@@ -164,7 +164,7 @@ class TestUnitListSchema:
             schema.loads(json.dumps(data))
 
     def test_with_negative_per_page(self):
-        schema = UnitListSchema()
+        schema = self.schema_class()
         data = {
             'page': 1,
             'per_page': -1
@@ -174,7 +174,7 @@ class TestUnitListSchema:
             schema.loads(json.dumps(data))
 
     def test_with_too_big_per_page(self):
-        schema = UnitListSchema()
+        schema = self.schema_class()
         data = {
             'page': 1,
             'per_page': 100
@@ -184,7 +184,7 @@ class TestUnitListSchema:
             schema.loads(json.dumps(data))
 
     def test_valid_dump(self):
-        schema = UnitListSchema()
+        schema = self.schema_class()
         data = {
             'total': 100,
             'units': [{
@@ -194,3 +194,24 @@ class TestUnitListSchema:
         }
 
         schema.dumps(data)
+
+
+class TestBulkCreateSchema:
+    schema_class = UnitBulkCreateSchema
+
+    def test_load(self):
+        data = {
+            'units': [
+                {
+                    'name': 'first_unit_name',
+                    'mall_id': 1
+                }, {
+                    'name': 'last_unit_name',
+                    'mall_id': 2
+                }
+            ]
+        }
+
+        schema = self.schema_class()
+
+        schema.loads(json.dumps(data))

@@ -27,7 +27,6 @@ class UnitRepository:
             with self._session.begin() as session:
                 session.add(unit)
         except IntegrityError as e:
-            print(e)
             if isinstance(e.orig, psycopg2.errors.ForeignKeyViolation):
                 raise DoesNotExistException('Mall does not exist!')
             elif isinstance(e.orig, psycopg2.errors.IntegrityError):
@@ -36,6 +35,20 @@ class UnitRepository:
             raise e
 
         return unit
+
+    def bulk_create(self, data: dict) -> None:
+        try:
+            with self._session.begin() as session:
+                session.bulk_insert_mappings(
+                    Unit, [
+                        unit for unit in data['units']
+                    ]
+                )
+        except IntegrityError as e:
+            if isinstance(e.orig, psycopg2.errors.UniqueViolation):
+                raise AlreadyExistsException('One or more units already exist!')
+
+            raise e
 
     def get_list(self, page: int, per_page: int) -> dict:
         Unit.query.with_session(self._session)

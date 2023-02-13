@@ -1,16 +1,13 @@
-from marshmallow import fields, Schema, validate, validates, ValidationError
+from marshmallow import fields, Schema, validate
+
+from api.schemas.base import BasePaginationSchema
 
 
-class BaseUnitSchema(Schema):
-    id = fields.Integer()
-    name = fields.String(
-        validate=validate.Length(max=255),
-    )
-
-
-class UnitCreateSchema(BaseUnitSchema):
+class UnitCreateSchema(Schema):
     class Meta:
         dump_only = ('id',)
+
+    id = fields.Integer()
     mall_id = fields.Integer(required=True)
     name = fields.String(
         validate=validate.Length(max=255),
@@ -18,32 +15,22 @@ class UnitCreateSchema(BaseUnitSchema):
     )
 
 
-class UnitUpdateSchema(BaseUnitSchema):
-    class Meta:
-        dump_only = ('id',)
+class UnitUpdateSchema(Schema):
+    name = fields.String(validate=validate.Length(max=255))
 
 
-class UnitRetrieveSchema(BaseUnitSchema):
-    class Meta:
-        dump_only = ('all',)
+class UnitRetrieveSchema(Schema):
+    id = fields.Integer()
+    name = fields.String(validate=validate.Length(max=255))
     mall_id = fields.Integer()
 
 
-class UnitListSchema(Schema):
+class UnitListSchema(BasePaginationSchema):
     class Meta:
-        load_only = ('page', 'per_page')
         dump_only = ('units', 'total')
 
-    page = fields.Integer()
-    per_page = fields.Integer(
-        validate=validate.Range(1, 50)
-    )
-
-    total = fields.Integer()
     units = fields.Nested(UnitRetrieveSchema(), many=True)
 
-    @validates('page')
-    def validate_page(self, value):
-        if value < 1:
-            raise ValidationError('Wrong page value! Try value > 1.')
-        return value
+
+class UnitBulkCreateSchema(Schema):
+    units = fields.List(fields.Nested(UnitCreateSchema()))

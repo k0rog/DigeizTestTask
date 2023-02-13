@@ -6,7 +6,24 @@ from webargs.flaskparser import use_args
 
 from api.services.unit import UnitService
 from api.utils.response_serializer import serialize_response
-from api.schemas.unit import UnitCreateSchema, UnitUpdateSchema, UnitRetrieveSchema, UnitListSchema
+from api.schemas.unit import (
+    UnitCreateSchema,
+    UnitUpdateSchema,
+    UnitRetrieveSchema,
+    UnitListSchema,
+    UnitBulkCreateSchema
+)
+
+
+class UnitsBulkResource(Resource):
+    @inject
+    def __init__(self, service: UnitService):
+        self.account_service = service
+
+    @use_args(UnitBulkCreateSchema())
+    @serialize_response(None, HTTPStatus.CREATED)
+    def post(self, accounts):
+        return self.account_service.bulk_create(accounts)
 
 
 class UnitsResource(Resource):

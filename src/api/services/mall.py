@@ -18,6 +18,9 @@ class MallService:
     def get_list(self, page: int, per_page: int) -> dict:
         return self._mall_repository.get_list(page, per_page)
 
+    def bulk_create(self, data: dict) -> None:
+        return self._mall_repository.bulk_create(data)
+
     def get(self, mall_id: int) -> Mall:
         return self._mall_repository.get(mall_id)
 

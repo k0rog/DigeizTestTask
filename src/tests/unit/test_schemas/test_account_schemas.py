@@ -7,11 +7,8 @@ from api.schemas.account import (
     AccountListSchema,
     AccountUpdateSchema,
     AccountRetrieveSchema,
+    AccountBulkCreateSchema
 )
-
-ACCOUNT_ID = 1
-ACCOUNT_NAME = 'account_name'
-
 
 ACCOUNT_DATA = {
     'name': 'account_name',
@@ -19,8 +16,10 @@ ACCOUNT_DATA = {
 
 
 class TestAccountCreateSchema:
+    schema_class = AccountCreateSchema
+
     def test_with_valid_data(self):
-        schema = AccountCreateSchema()
+        schema = self.schema_class()
 
         data = schema.loads(json.dumps(ACCOUNT_DATA))
 
@@ -32,8 +31,8 @@ class TestAccountCreateSchema:
                 ('id', 1),
         )
     )
-    def test_field_is_not_loaded(self, field, value):
-        schema = AccountCreateSchema()
+    def test_for_not_loaded_fields(self, field, value):
+        schema = self.schema_class()
 
         create_data = ACCOUNT_DATA.copy()
         create_data[field] = value
@@ -41,29 +40,27 @@ class TestAccountCreateSchema:
         with pytest.raises(marshmallow.exceptions.ValidationError):
             schema.loads(json.dumps(create_data))
 
-    @pytest.mark.parametrize(
-        'field,value',
-        (
-                ('id', 1),
-        )
-    )
-    def test_id_is_dumped(self, field, value):
-        schema = AccountCreateSchema()
+    def test_id_is_dumped(self):
+        schema = self.schema_class()
 
         validated_data = ACCOUNT_DATA.copy()
-        validated_data[field] = value
+        validated_data['id'] = 1
 
         return_data = schema.dump(validated_data)
 
-        assert field in return_data
+        assert 'id' in return_data
 
-    @pytest.mark.parametrize('field', ('name',))
-    @pytest.mark.parametrize('value', (1,))
+    @pytest.mark.parametrize(
+        'field,value',
+        (
+                ('name', 1),
+        )
+    )
     def test_with_wrong_type(self, field, value):
         wrong_data = ACCOUNT_DATA.copy()
         wrong_data[field] = value
 
-        schema = AccountCreateSchema()
+        schema = self.schema_class()
 
         with pytest.raises(marshmallow.exceptions.ValidationError) as exception_info:
             schema.loads(json.dumps(wrong_data))
@@ -71,50 +68,44 @@ class TestAccountCreateSchema:
         error_message_dict = exception_info.value.messages
         assert len(error_message_dict) == 1
         assert field in error_message_dict
-        assert error_message_dict[field][0] == f'Not a valid string.'
+
+    def test_with_invalid_name(self):
+        wrong_data = ACCOUNT_DATA.copy()
+        wrong_data['name'] = ''.join(['_' for _ in range(257)])
+
+        schema = self.schema_class()
+
+        with pytest.raises(marshmallow.exceptions.ValidationError) as exception_info:
+            schema.loads(json.dumps(wrong_data))
+
+        error_message_dict = exception_info.value.messages
+        assert len(error_message_dict) == 1
+        assert 'name' in error_message_dict
+        assert error_message_dict['name'][0] == f'Longer than maximum length 255.'
 
 
 class TestAccountUpdateSchema:
+    schema_class = AccountUpdateSchema
+
     def test_with_valid_data(self):
-        schema = AccountUpdateSchema()
+        schema = self.schema_class(partial=True)
 
         data = schema.loads(json.dumps(ACCOUNT_DATA))
 
         assert data['name'] == ACCOUNT_DATA['name']
 
-    @pytest.mark.parametrize(
-        'field,value',
-        (
-                ('id', 1),
-        )
-    )
-    def test_field_is_not_loaded(self, field, value):
-        schema = AccountCreateSchema()
+    def test_partial(self):
+        schema = self.schema_class(partial=True)
 
-        create_data = ACCOUNT_DATA.copy()
-        create_data[field] = value
-
-        with pytest.raises(marshmallow.exceptions.ValidationError):
-            schema.loads(json.dumps(create_data))
+        data = {}
+        schema.loads(json.dumps(data))
 
     @pytest.mark.parametrize(
         'field,value',
         (
-                ('id', 1),
+                ('name', 1),
         )
     )
-    def test_field_is_dumped(self, field, value):
-        schema = AccountCreateSchema()
-
-        validated_data = ACCOUNT_DATA.copy()
-        validated_data[field] = value
-
-        return_data = schema.dump(validated_data)
-
-        assert field in return_data
-
-    @pytest.mark.parametrize('field', ('name',))
-    @pytest.mark.parametrize('value', (1,))
     def test_with_wrong_type(self, field, value):
         wrong_data = ACCOUNT_DATA.copy()
         wrong_data[field] = value
@@ -127,7 +118,6 @@ class TestAccountUpdateSchema:
         error_message_dict = exception_info.value.messages
         assert len(error_message_dict) == 1
         assert field in error_message_dict
-        assert error_message_dict[field][0] == f'Not a valid string.'
 
 
 class TestAccountRetrieveSchema:
@@ -135,17 +125,31 @@ class TestAccountRetrieveSchema:
         schema = AccountRetrieveSchema()
 
         account_data = ACCOUNT_DATA.copy()
-        account_data['id'] = 1
+        account_data.update({
+            'id': 1,
+            'malls': [{
+                'id': 1,
+                'name': 'mall_name'
+            }, {
+                'id': 2,
+                'name': 'second_name'
+            }
+            ]
+        })
 
-        retrieve_data = schema.dumps(account_data)
+        retrieve_data = json.loads(schema.dumps(account_data))
 
         assert 'id' in retrieve_data
         assert 'name' in retrieve_data
+        assert 'malls' in retrieve_data
+        assert 'id' in retrieve_data['malls'][0] and 'name' in retrieve_data['malls'][0]
 
 
 class TestAccountListSchema:
+    schema_class = AccountListSchema
+
     def test_valid_load(self):
-        schema = AccountListSchema()
+        schema = self.schema_class()
 
         schema.loads(json.dumps({
             'page': 1,
@@ -153,7 +157,7 @@ class TestAccountListSchema:
         }))
 
     def test_with_negative_page(self):
-        schema = AccountListSchema()
+        schema = self.schema_class()
         data = {
             'page': -1,
             'per_page': 10
@@ -163,7 +167,7 @@ class TestAccountListSchema:
             schema.loads(json.dumps(data))
 
     def test_with_negative_per_page(self):
-        schema = AccountListSchema()
+        schema = self.schema_class()
         data = {
             'page': 1,
             'per_page': -1
@@ -173,7 +177,7 @@ class TestAccountListSchema:
             schema.loads(json.dumps(data))
 
     def test_with_too_big_per_page(self):
-        schema = AccountListSchema()
+        schema = self.schema_class()
         data = {
             'page': 1,
             'per_page': 100
@@ -183,7 +187,7 @@ class TestAccountListSchema:
             schema.loads(json.dumps(data))
 
     def test_valid_dump(self):
-        schema = AccountListSchema()
+        schema = self.schema_class()
         data = {
             'total': 100,
             'accounts': [{
@@ -193,3 +197,22 @@ class TestAccountListSchema:
         }
 
         schema.dumps(data)
+
+
+class TestBulkCreateSchema:
+    schema_class = AccountBulkCreateSchema
+
+    def test_load(self):
+        data = {
+            'accounts': [
+                {
+                    'name': 'first_account_name'
+                }, {
+                    'name': 'last_account_name'
+                }
+            ]
+        }
+
+        schema = self.schema_class()
+
+        schema.loads(json.dumps(data))

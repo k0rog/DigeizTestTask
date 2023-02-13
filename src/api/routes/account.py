@@ -1,4 +1,7 @@
+import json
 from http import HTTPStatus
+
+from flask import request
 
 from injector import inject
 from flask_restful import Resource
@@ -6,7 +9,24 @@ from webargs.flaskparser import use_args
 
 from api.services.account import AccountService
 from api.utils.response_serializer import serialize_response
-from api.schemas.account import AccountCreateSchema, AccountUpdateSchema, AccountRetrieveSchema, AccountListSchema
+from api.schemas.account import (
+    AccountCreateSchema,
+    AccountUpdateSchema,
+    AccountRetrieveSchema,
+    AccountListSchema,
+    AccountBulkCreateSchema
+)
+
+
+class AccountsBulkResource(Resource):
+    @inject
+    def __init__(self, service: AccountService):
+        self.account_service = service
+
+    @use_args(AccountBulkCreateSchema())
+    @serialize_response(None, HTTPStatus.NO_CONTENT)
+    def post(self, accounts):
+        return self.account_service.bulk_create(accounts)
 
 
 class AccountsResource(Resource):

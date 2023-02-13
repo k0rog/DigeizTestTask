@@ -4,19 +4,14 @@ from api.exceptions import AlreadyExistsException, DoesNotExistException
 from api.models.mall import Mall
 
 
-ACCOUNT_DATA = {
-    'name': 'my_first_mall',
-}
-
-
 class TestCreate:
-    def test_is_id_returned(self, mall_service):
-        mall = mall_service.create(ACCOUNT_DATA)
+    def test_is_id_returned(self, mall_service, mall_data):
+        mall = mall_service.create(mall_data)
 
         assert hasattr(mall, 'id')
 
-    def test_create(self, mall_service, session):
-        mall = mall_service.create(ACCOUNT_DATA)
+    def test_create(self, mall_service, mall_data, session):
+        mall = mall_service.create(mall_data)
 
         with session.begin() as session:
             storage_mall = session.query(
@@ -24,20 +19,20 @@ class TestCreate:
             ).get(mall.id)
 
         assert storage_mall is not None
-        assert storage_mall.name == ACCOUNT_DATA['name']
+        assert storage_mall.name == mall_data['name']
 
-    def test_for_duplicated_name(self, mall_service):
-        mall_service.create(ACCOUNT_DATA)
+    def test_for_duplicated_name(self, mall_service, mall_data):
+        mall_service.create(mall_data)
 
         with pytest.raises(AlreadyExistsException) as exception_info:
-            mall_service.create(ACCOUNT_DATA)
+            mall_service.create(mall_data)
 
         assert exception_info.value.message == 'Mall already exists!'
 
 
 class TestUpdate:
-    def test_for_one_field(self, mall_service, session):
-        mall = mall_service.create(ACCOUNT_DATA)
+    def test_for_one_field(self, mall_service, session, mall_data):
+        mall = mall_service.create(mall_data)
 
         update_data = {
             'name': 'updated_name'
@@ -52,16 +47,16 @@ class TestUpdate:
 
         assert storage_mall.name == update_data['name']
 
-    def test_for_duplicated_name(self, mall_service):
-        mall_service.create(ACCOUNT_DATA)
+    def test_for_duplicated_name(self, mall_service, mall_data):
+        mall_service.create(mall_data)
 
-        second_mall_data = ACCOUNT_DATA.copy()
+        second_mall_data = mall_data.copy()
         second_mall_data.update({'name': 'second_mall_name'})
 
         second_mall = mall_service.create(second_mall_data)
 
         update_data = {
-            'name': ACCOUNT_DATA['name']
+            'name': mall_data['name']
         }
 
         with pytest.raises(AlreadyExistsException) as exception_info:
@@ -71,8 +66,8 @@ class TestUpdate:
 
 
 class TestDelete:
-    def test_delete(self, mall_service, session):
-        mall = mall_service.create(ACCOUNT_DATA)
+    def test_delete(self, mall_service, session, mall_data):
+        mall = mall_service.create(mall_data)
 
         is_deleted = mall_service.delete(mall.id)
 
@@ -90,8 +85,8 @@ class TestDelete:
 
 
 class TestGet:
-    def test_get(self, mall_service, session):
-        mall = mall_service.create(ACCOUNT_DATA)
+    def test_get(self, mall_service, session, mall_data):
+        mall = mall_service.create(mall_data)
 
         retrieved_mall = mall_service.get(mall.id)
 
@@ -118,12 +113,12 @@ class TestGetList:
                 (10, 3, 3)
         )
     )
-    def test_get_list(self, mall_service, count_to_create, page, per_page):
+    def test_get_list(self, mall_service, mall_data, count_to_create, page, per_page):
         created_malls = []
 
         for i in range(count_to_create):
-            mall_data = ACCOUNT_DATA.copy()
-            mall_data.update({'name': f'{ACCOUNT_DATA["name"]}{i}'})
+            mall_data = mall_data.copy()
+            mall_data.update({'name': f'{mall_data["name"]}{i}'})
 
             created_malls.append(
                 mall_service.create(mall_data)
@@ -137,3 +132,41 @@ class TestGetList:
         for i, retrieved_mall in enumerate(retrieved_malls['malls']):
             assert retrieved_mall.id == created_malls[i + created_malls_skip].id
             assert retrieved_mall.name == created_malls[i + created_malls_skip].name
+
+
+class TestBulkCreate:
+    def test_bulk_create(self, mall_service, session, account):
+        data = {'malls': [{
+            'name': 'first_mall',
+            'account_id': account.id
+        }, {
+            'name': 'second_mall',
+            'account_id': account.id
+        }]}
+
+        mall_service.bulk_create(data)
+
+        with session.begin() as session:
+            assert session.query(
+                Mall
+            ).filter(
+                Mall.name.in_(
+                    [mall['name'] for mall in data['malls']]
+                )
+            ).count() == len(data['malls'])
+
+    def test_bulk_create_with_duplicated_data(self, mall_service, account):
+        data = {'malls': [{
+            'name': 'first_mall',
+            'account_id': account.id
+        }, {
+            'name': 'second_mall',
+            'account_id': account.id
+        }]}
+
+        mall_service.bulk_create(data)
+
+        with pytest.raises(AlreadyExistsException) as exception_info:
+            mall_service.bulk_create(data)
+
+        assert exception_info.value.message == 'One or more malls already exist!'

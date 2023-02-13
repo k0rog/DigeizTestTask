@@ -1,3 +1,4 @@
+import psycopg2.errors
 from sqlalchemy.orm import sessionmaker, joinedload
 from injector import inject
 
@@ -28,6 +29,20 @@ class AccountRepository:
             raise AlreadyExistsException('Account already exists!')
 
         return account
+
+    def bulk_create(self, data: dict) -> None:
+        try:
+            with self._session.begin() as session:
+                session.bulk_insert_mappings(
+                    Account, [
+                        account for account in data['accounts']
+                    ]
+                )
+        except IntegrityError as e:
+            if isinstance(e.orig, psycopg2.errors.UniqueViolation):
+                raise AlreadyExistsException('One or more accounts already exist!')
+
+            raise e
 
     def get_list(self, page: int, per_page: int) -> dict:
         Account.query.with_session(self._session)

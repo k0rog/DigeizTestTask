@@ -4,35 +4,30 @@ from http import HTTPStatus
 from api.models.unit import Unit
 
 
-ACCOUNT_DATA = {
-    'name': 'my_first_unit',
-}
-
-
 class TestCreate:
     URL = '/api/units/'
 
-    def test_is_id_returned(self, client, unique_unit):
-        response = client.post(self.URL, json=unique_unit)
+    def test_is_id_returned(self, client, permanent_unit_data):
+        response = client.post(self.URL, json=permanent_unit_data)
 
         assert response.status_code == HTTPStatus.CREATED
         assert 'id' in response.json
 
-    def test_create(self, client, session, unique_unit):
-        response = client.post(self.URL, json=unique_unit)
+    def test_create(self, client, permanent_session, permanent_unit_data):
+        response = client.post(self.URL, json=permanent_unit_data)
         assert response.status_code == HTTPStatus.CREATED
 
-        with session.begin() as session:
+        with permanent_session.begin() as session:
             storage_unit = session.query(
                 Unit
             ).get(response.json['id'])
 
         assert storage_unit is not None
-        assert storage_unit.name == unique_unit['name']
+        assert storage_unit.name == permanent_unit_data['name']
 
-    def test_for_duplicated_name(self, client, unique_unit):
-        client.post(self.URL, json=unique_unit)
-        response = client.post(self.URL, json=unique_unit)
+    def test_for_duplicated_name(self, client, permanent_unit_data):
+        client.post(self.URL, json=permanent_unit_data)
+        response = client.post(self.URL, json=permanent_unit_data)
 
         assert response.status_code == HTTPStatus.BAD_REQUEST
         assert 'error' in response.json
@@ -43,10 +38,10 @@ class TestCreate:
         (
                 ('name', 123),
         ))
-    def test_with_invalid_data(self, client, field, value, unique_unit):
-        unique_unit[field] = value
+    def test_with_invalid_data(self, client, field, value, permanent_unit_data):
+        permanent_unit_data[field] = value
 
-        response = client.post(self.URL, json=unique_unit)
+        response = client.post(self.URL, json=permanent_unit_data)
 
         assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
         assert 'errors' in response.json
@@ -56,8 +51,8 @@ class TestCreate:
 class TestUpdate:
     URL = '/api/units/'
 
-    def test_update(self, client, session, unique_unit):
-        unit_id = client.post(self.URL, json=unique_unit).json['id']
+    def test_update(self, client, permanent_session, permanent_unit_data):
+        unit_id = client.post(self.URL, json=permanent_unit_data).json['id']
 
         update_data = {
             'name': 'updated_name',
@@ -68,7 +63,7 @@ class TestUpdate:
             json=update_data
         )
 
-        with session.begin() as session:
+        with permanent_session.begin() as session:
             storage_unit = session.query(
                 Unit
             ).get(unit_id)
@@ -76,10 +71,10 @@ class TestUpdate:
         assert response.status_code == HTTPStatus.NO_CONTENT
         assert storage_unit.name == update_data['name']
 
-    def test_for_duplicated_name(self, client, unique_unit):
-        client.post(self.URL, json=unique_unit)
+    def test_for_duplicated_name(self, client, permanent_unit_data):
+        client.post(self.URL, json=permanent_unit_data)
 
-        second_unit_data = unique_unit.copy()
+        second_unit_data = permanent_unit_data.copy()
         second_unit_data.update({
             'name': 'second_unit_name'
         })
@@ -87,7 +82,7 @@ class TestUpdate:
 
         update_response = client.patch(
             self.URL + str(response.json['id']),
-            json={'name': unique_unit['name']}
+            json={'name': permanent_unit_data['name']}
         )
 
         assert update_response.status_code == HTTPStatus.BAD_REQUEST
@@ -99,8 +94,8 @@ class TestUpdate:
         (
                 ('name', 123),
         ))
-    def test_with_invalid_data(self, client, unique_unit, field, value):
-        unit_id = client.post(self.URL, json=unique_unit).json['id']
+    def test_with_invalid_data(self, client, permanent_unit_data, field, value):
+        unit_id = client.post(self.URL, json=permanent_unit_data).json['id']
 
         update_data = {field: value}
 
@@ -114,14 +109,14 @@ class TestUpdate:
 class TestDelete:
     URL = '/api/units/'
 
-    def test_delete(self, client, session, unique_unit):
-        unit_id = client.post(self.URL, json=unique_unit).json['id']
+    def test_delete(self, client, permanent_session, permanent_unit_data):
+        unit_id = client.post(self.URL, json=permanent_unit_data).json['id']
 
         response = client.delete(self.URL + str(unit_id))
 
         assert response.status_code == HTTPStatus.NO_CONTENT
 
-        with session.begin() as session:
+        with permanent_session.begin() as session:
             assert session.query(
                 Unit.id
             ).filter_by(id=unit_id).first() is None
@@ -135,15 +130,15 @@ class TestDelete:
 class TestGet:
     URL = '/api/units/'
 
-    def test_get(self, client, unique_unit):
-        unit_id = client.post(self.URL, json=unique_unit).json['id']
+    def test_get(self, client, permanent_unit_data):
+        unit_id = client.post(self.URL, json=permanent_unit_data).json['id']
 
         retrieved_unit = client.get(
             self.URL + str(unit_id)
         )
 
         assert retrieved_unit.status_code == HTTPStatus.OK
-        assert retrieved_unit.json['name'] == unique_unit['name']
+        assert retrieved_unit.json['name'] == permanent_unit_data['name']
         assert retrieved_unit.json['id'] == unit_id
 
     def test_for_nonexistent_unit(self, client):
@@ -179,3 +174,46 @@ class TestGetList:
         assert 'errors' in response.json
         assert response.json['errors']['querystring']['per_page'] == \
                ['Must be greater than or equal to 1 and less than or equal to 50.']
+
+
+class TestBulkCreate:
+    URL = '/api/units/bulk'
+
+    def test_bulk_create(self, client, permanent_session, permanent_mall):
+        data = {'units': [{
+            'name': 'first_unit',
+            'mall_id': permanent_mall.id
+        }, {
+            'name': 'second_unit',
+            'mall_id': permanent_mall.id
+        }]}
+
+        response = client.post(self.URL, json=data)
+
+        assert response.status_code == HTTPStatus.CREATED
+
+        with permanent_session.begin() as session:
+            assert session.query(
+                Unit
+            ).filter(
+                Unit.name.in_(
+                    [unit['name'] for unit in data['units']]
+                )
+            ).count() == len(data['units'])
+
+    def test_bulk_create_with_duplicated_data(self, client, permanent_mall):
+        data = {'units': [{
+            'name': 'first_unit',
+            'mall_id': permanent_mall.id
+        }, {
+            'name': 'second_unit',
+            'mall_id': permanent_mall.id
+        }]}
+
+        client.post(self.URL, json=data)
+
+        response = client.post(self.URL, json=data)
+
+        assert response.status_code == HTTPStatus.BAD_REQUEST
+        assert 'error' in response.json
+        assert response.json['error'] == 'One or more units already exist!'

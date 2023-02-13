@@ -4,19 +4,14 @@ from api.exceptions import AlreadyExistsException, DoesNotExistException
 from api.models.unit import Unit
 
 
-ACCOUNT_DATA = {
-    'name': 'my_first_unit',
-}
-
-
 class TestCreate:
-    def test_is_id_returned(self, unit_service):
-        unit = unit_service.create(ACCOUNT_DATA)
+    def test_is_id_returned(self, unit_service, unit_data):
+        unit = unit_service.create(unit_data)
 
         assert hasattr(unit, 'id')
 
-    def test_create(self, unit_service, session):
-        unit = unit_service.create(ACCOUNT_DATA)
+    def test_create(self, unit_service, session, unit_data):
+        unit = unit_service.create(unit_data)
 
         with session.begin() as session:
             storage_unit = session.query(
@@ -24,20 +19,20 @@ class TestCreate:
             ).get(unit.id)
 
         assert storage_unit is not None
-        assert storage_unit.name == ACCOUNT_DATA['name']
+        assert storage_unit.name == unit_data['name']
 
-    def test_for_duplicated_name(self, unit_service):
-        unit_service.create(ACCOUNT_DATA)
+    def test_for_duplicated_name(self, unit_service, unit_data):
+        unit_service.create(unit_data)
 
         with pytest.raises(AlreadyExistsException) as exception_info:
-            unit_service.create(ACCOUNT_DATA)
+            unit_service.create(unit_data)
 
         assert exception_info.value.message == 'Unit already exists!'
 
 
 class TestUpdate:
-    def test_for_one_field(self, unit_service, session):
-        unit = unit_service.create(ACCOUNT_DATA)
+    def test_for_one_field(self, unit_service, session, unit_data):
+        unit = unit_service.create(unit_data)
 
         update_data = {
             'name': 'updated_name'
@@ -52,16 +47,16 @@ class TestUpdate:
 
         assert storage_unit.name == update_data['name']
 
-    def test_for_duplicated_name(self, unit_service):
-        unit_service.create(ACCOUNT_DATA)
+    def test_for_duplicated_name(self, unit_service, unit_data):
+        unit_service.create(unit_data)
 
-        second_unit_data = ACCOUNT_DATA.copy()
+        second_unit_data = unit_data.copy()
         second_unit_data.update({'name': 'second_unit_name'})
 
         second_unit = unit_service.create(second_unit_data)
 
         update_data = {
-            'name': ACCOUNT_DATA['name']
+            'name': unit_data['name']
         }
 
         with pytest.raises(AlreadyExistsException) as exception_info:
@@ -71,8 +66,8 @@ class TestUpdate:
 
 
 class TestDelete:
-    def test_delete(self, unit_service, session):
-        unit = unit_service.create(ACCOUNT_DATA)
+    def test_delete(self, unit_service, session, unit_data):
+        unit = unit_service.create(unit_data)
 
         is_deleted = unit_service.delete(unit.id)
 
@@ -90,8 +85,8 @@ class TestDelete:
 
 
 class TestGet:
-    def test_get(self, unit_service, session):
-        unit = unit_service.create(ACCOUNT_DATA)
+    def test_get(self, unit_service, session, unit_data):
+        unit = unit_service.create(unit_data)
 
         retrieved_unit = unit_service.get(unit.id)
 
@@ -118,12 +113,12 @@ class TestGetList:
                 (10, 3, 3)
         )
     )
-    def test_get_list(self, unit_service, count_to_create, page, per_page):
+    def test_get_list(self, unit_service, unit_data, count_to_create, page, per_page):
         created_units = []
 
         for i in range(count_to_create):
-            unit_data = ACCOUNT_DATA.copy()
-            unit_data.update({'name': f'{ACCOUNT_DATA["name"]}{i}'})
+            unit_data = unit_data.copy()
+            unit_data.update({'name': f'{unit_data["name"]}{i}'})
 
             created_units.append(
                 unit_service.create(unit_data)
@@ -137,3 +132,41 @@ class TestGetList:
         for i, retrieved_unit in enumerate(retrieved_units['units']):
             assert retrieved_unit.id == created_units[i + created_units_skip].id
             assert retrieved_unit.name == created_units[i + created_units_skip].name
+
+
+class TestBulkCreate:
+    def test_bulk_create(self, unit_service, session, mall):
+        data = {'units': [{
+            'name': 'first_unit',
+            'mall_id': mall.id
+        }, {
+            'name': 'second_unit',
+            'mall_id': mall.id
+        }]}
+
+        unit_service.bulk_create(data)
+
+        with session.begin() as session:
+            assert session.query(
+                Unit
+            ).filter(
+                Unit.name.in_(
+                    [unit['name'] for unit in data['units']]
+                )
+            ).count() == len(data['units'])
+
+    def test_bulk_create_with_duplicated_data(self, unit_service, mall):
+        data = {'units': [{
+            'name': 'first_unit',
+            'mall_id': mall.id
+        }, {
+            'name': 'second_unit',
+            'mall_id': mall.id
+        }]}
+
+        unit_service.bulk_create(data)
+
+        with pytest.raises(AlreadyExistsException) as exception_info:
+            unit_service.bulk_create(data)
+
+        assert exception_info.value.message == 'One or more units already exist!'

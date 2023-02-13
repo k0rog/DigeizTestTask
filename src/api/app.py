@@ -1,18 +1,21 @@
 from flask import Flask
 from flask_injector import FlaskInjector
-from injector import Injector
+from injector import Injector, Module
 
 from api.dependency_injection import SQLAlchemyModule
 from api.exceptions import (AppException, api_exception_handler,
                             app_exception_handler)
 from api.extensions import db, migrate, api
 from api.config import DefaultConfig
-from api.routes.account import AccountsResource, AccountResource
-from api.routes.mall import MallsResource, MallResource
-from api.routes.unit import UnitsResource, UnitResource
+from api.routes.account import AccountsResource, AccountResource, AccountsBulkResource
+from api.routes.mall import MallsResource, MallResource, MallsBulkResource
+from api.routes.unit import UnitsResource, UnitResource, UnitsBulkResource
 
 
-def create_app(config_class: object = DefaultConfig):
+def create_app(
+        config_class: object = DefaultConfig,
+        injected_modules: list[Module] = None
+):
     app = Flask(__name__)
 
     app.config.from_object(config_class)
@@ -22,8 +25,21 @@ def create_app(config_class: object = DefaultConfig):
     app.errorhandler(AppException)(app_exception_handler)
 
     register_extensions(app)
+    register_injection_modules(app, injected_modules)
 
     return app
+
+
+def register_injection_modules(app, injected_modules):
+    default_modules = [
+        SQLAlchemyModule(sqlalchemy_url=app.config.get('SQLALCHEMY_DATABASE_URI'))
+    ]
+
+    if injected_modules is not None:
+        default_modules += injected_modules
+
+    injector = Injector(default_modules)
+    FlaskInjector(app=app, injector=injector)
 
 
 def register_extensions(app):
@@ -33,18 +49,16 @@ def register_extensions(app):
 
     api.add_resource(AccountsResource, '/api/accounts/', endpoint='accounts')
     api.add_resource(AccountResource, '/api/accounts/<int:account_id>', endpoint='account')
+    api.add_resource(AccountsBulkResource, '/api/accounts/bulk', endpoint='accounts_bulk')
 
     api.add_resource(MallsResource, '/api/malls/', endpoint='malls')
     api.add_resource(MallResource, '/api/malls/<int:mall_id>', endpoint='mall')
+    api.add_resource(MallsBulkResource, '/api/malls/bulk', endpoint='malls_bulk')
 
     api.add_resource(UnitsResource, '/api/units/', endpoint='units')
     api.add_resource(UnitResource, '/api/units/<int:unit_id>', endpoint='unit')
+    api.add_resource(UnitsBulkResource, '/api/units/bulk', endpoint='units_bulk')
 
     db.init_app(app)
     migrate.init_app(app, db)
     api.init_app(app)
-
-    injector = Injector([
-        SQLAlchemyModule(sqlalchemy_url=app.config.get('SQLALCHEMY_DATABASE_URI'))
-    ])
-    FlaskInjector(app=app, injector=injector)

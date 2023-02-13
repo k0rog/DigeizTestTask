@@ -4,35 +4,30 @@ from http import HTTPStatus
 from api.models.account import Account
 
 
-ACCOUNT_DATA = {
-    'name': 'my_first_account',
-}
-
-
 class TestCreate:
     URL = '/api/accounts/'
 
-    def test_is_id_returned(self, client, unique_account):
-        response = client.post(self.URL, json=unique_account)
+    def test_is_id_returned(self, client, permanent_account_data):
+        response = client.post(self.URL, json=permanent_account_data)
 
         assert response.status_code == HTTPStatus.CREATED
         assert 'id' in response.json
 
-    def test_create(self, client, session, unique_account):
-        response = client.post(self.URL, json=unique_account)
+    def test_create(self, client, permanent_session, permanent_account_data):
+        response = client.post(self.URL, json=permanent_account_data)
         assert response.status_code == HTTPStatus.CREATED
 
-        with session.begin() as session:
+        with permanent_session.begin() as session:
             storage_account = session.query(
                 Account
             ).get(response.json['id'])
 
         assert storage_account is not None
-        assert storage_account.name == unique_account['name']
+        assert storage_account.name == permanent_account_data['name']
 
-    def test_for_duplicated_name(self, client, unique_account):
-        client.post(self.URL, json=unique_account)
-        response = client.post(self.URL, json=unique_account)
+    def test_for_duplicated_name(self, client, permanent_account_data):
+        client.post(self.URL, json=permanent_account_data)
+        response = client.post(self.URL, json=permanent_account_data)
 
         assert response.status_code == HTTPStatus.BAD_REQUEST
         assert 'error' in response.json
@@ -43,10 +38,10 @@ class TestCreate:
         (
                 ('name', 123),
         ))
-    def test_with_invalid_data(self, client, field, value, unique_account):
-        unique_account[field] = value
+    def test_with_invalid_data(self, client, field, value, permanent_account_data):
+        permanent_account_data[field] = value
 
-        response = client.post(self.URL, json=unique_account)
+        response = client.post(self.URL, json=permanent_account_data)
 
         assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
         assert 'errors' in response.json
@@ -56,8 +51,8 @@ class TestCreate:
 class TestUpdate:
     URL = '/api/accounts/'
 
-    def test_update(self, client, session, unique_account):
-        account_id = client.post(self.URL, json=unique_account).json['id']
+    def test_update(self, client, permanent_session, permanent_account_data):
+        account_id = client.post(self.URL, json=permanent_account_data).json['id']
 
         update_data = {
             'name': 'updated_name',
@@ -68,7 +63,7 @@ class TestUpdate:
             json=update_data
         )
 
-        with session.begin() as session:
+        with permanent_session.begin() as session:
             storage_account = session.query(
                 Account
             ).get(account_id)
@@ -76,10 +71,10 @@ class TestUpdate:
         assert response.status_code == HTTPStatus.NO_CONTENT
         assert storage_account.name == update_data['name']
 
-    def test_for_duplicated_name(self, client, unique_account):
-        client.post(self.URL, json=unique_account)
+    def test_for_duplicated_name(self, client, permanent_account_data):
+        client.post(self.URL, json=permanent_account_data)
 
-        second_account_data = unique_account.copy()
+        second_account_data = permanent_account_data.copy()
         second_account_data.update({
             'name': 'second_account_name'
         })
@@ -87,7 +82,7 @@ class TestUpdate:
 
         update_response = client.patch(
             self.URL + str(response.json['id']),
-            json={'name': unique_account['name']}
+            json={'name': permanent_account_data['name']}
         )
 
         assert update_response.status_code == HTTPStatus.BAD_REQUEST
@@ -99,8 +94,8 @@ class TestUpdate:
         (
                 ('name', 123),
         ))
-    def test_with_invalid_data(self, client, unique_account, field, value):
-        account_id = client.post(self.URL, json=unique_account).json['id']
+    def test_with_invalid_data(self, client, permanent_account_data, field, value):
+        account_id = client.post(self.URL, json=permanent_account_data).json['id']
 
         update_data = {field: value}
 
@@ -114,14 +109,14 @@ class TestUpdate:
 class TestDelete:
     URL = '/api/accounts/'
 
-    def test_delete(self, client, session, unique_account):
-        account_id = client.post(self.URL, json=unique_account).json['id']
+    def test_delete(self, client, permanent_session, permanent_account_data):
+        account_id = client.post(self.URL, json=permanent_account_data).json['id']
 
         response = client.delete(self.URL + str(account_id))
 
         assert response.status_code == HTTPStatus.NO_CONTENT
 
-        with session.begin() as session:
+        with permanent_session.begin() as session:
             assert session.query(
                 Account.id
             ).filter_by(id=account_id).first() is None
@@ -135,15 +130,15 @@ class TestDelete:
 class TestGet:
     URL = '/api/accounts/'
 
-    def test_get(self, client, unique_account):
-        account_id = client.post(self.URL, json=unique_account).json['id']
+    def test_get(self, client, permanent_account_data):
+        account_id = client.post(self.URL, json=permanent_account_data).json['id']
 
         retrieved_account = client.get(
             self.URL + str(account_id)
         )
 
         assert retrieved_account.status_code == HTTPStatus.OK
-        assert retrieved_account.json['name'] == unique_account['name']
+        assert retrieved_account.json['name'] == permanent_account_data['name']
         assert retrieved_account.json['id'] == account_id
 
     def test_for_nonexistent_account(self, client):
@@ -179,3 +174,40 @@ class TestGetList:
         assert 'errors' in response.json
         assert response.json['errors']['querystring']['per_page'] == \
                ['Must be greater than or equal to 1 and less than or equal to 50.']
+
+
+class TestBulkCreate:
+    URL = '/api/accounts/bulk'
+
+    def test_bulk_create(self, client, permanent_session):
+        data = {'accounts': [{
+            'name': 'first_account',
+        }, {
+            'name': 'second_account'
+        }]}
+
+        client.post(self.URL, json=data)
+
+        with permanent_session.begin() as session:
+            assert session.query(
+                Account
+            ).filter(
+                Account.name.in_(
+                    [account['name'] for account in data['accounts']]
+                )
+            ).count() == len(data['accounts'])
+
+    def test_bulk_create_with_duplicated_data(self, client):
+        data = {'accounts': [{
+            'name': 'first_account',
+        }, {
+            'name': 'second_account'
+        }]}
+
+        client.post(self.URL, json=data)
+
+        response = client.post(self.URL, json=data)
+
+        assert response.status_code == HTTPStatus.BAD_REQUEST
+        assert 'error' in response.json
+        assert response.json['error'] == 'One or more accounts already exist!'

@@ -35,6 +35,20 @@ class MallRepository:
             raise e
         return mall
 
+    def bulk_create(self, data: dict) -> None:
+        try:
+            with self._session.begin() as session:
+                session.bulk_insert_mappings(
+                    Mall, [
+                        mall for mall in data['malls']
+                    ]
+                )
+        except IntegrityError as e:
+            if isinstance(e.orig, psycopg2.errors.UniqueViolation):
+                raise AlreadyExistsException('One or more malls already exist!')
+
+            raise e
+
     def get_list(self, page: int, per_page: int) -> dict:
         Mall.query.with_session(self._session)
         try:

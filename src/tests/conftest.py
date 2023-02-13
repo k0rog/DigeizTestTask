@@ -5,6 +5,8 @@ from testing.postgresql import Postgresql
 from sqlalchemy import create_engine
 
 from api.app import create_app
+from api.models.account import Account
+from api.models.mall import Mall
 
 from api.repositories.account import AccountRepository
 from api.repositories.mall import MallRepository
@@ -31,7 +33,7 @@ def sqlalchemy_database_url():
 @pytest.fixture(scope='session')
 def app(sqlalchemy_database_url):
 
-    config_class = get_config_class('.env.test')
+    config_class = get_config_class('../.env.test')
     config_class.SQLALCHEMY_DATABASE_URI = sqlalchemy_database_url
 
     app = create_app(config_class)
@@ -74,6 +76,13 @@ def session(connection):
     trans.rollback()
 
 
+@pytest.fixture(scope='module')
+def permanent_session(connection):
+    sc_session = sessionmaker(bind=connection, expire_on_commit=False)
+
+    yield sc_session
+
+
 @pytest.fixture(scope='function')
 def client(app, engine):
     client = app.test_client()
@@ -99,23 +108,6 @@ def account_service(account_repository) -> AccountService:
     yield service
 
 
-@pytest.fixture(scope='session')
-def unique_account_iterator():
-    def unique_account_generator():
-        i = 1
-        while True:
-            yield {
-                'name': f'name-{i}'
-            }
-            i += 1
-    yield unique_account_generator()
-
-
-@pytest.fixture(scope='function')
-def unique_account(unique_account_iterator) -> dict:
-    yield next(unique_account_iterator)
-
-
 @pytest.fixture(scope='function')
 def mall_repository(session) -> MallRepository:
     repository = MallRepository(
@@ -133,23 +125,6 @@ def mall_service(mall_repository) -> MallService:
 
     yield service
 
-
-@pytest.fixture(scope='session')
-def unique_mall_iterator():
-    def unique_mall_generator():
-        i = 1
-        while True:
-            yield {
-                'name': f'name-{i}'
-            }
-            i += 1
-    yield unique_mall_generator()
-
-
-@pytest.fixture(scope='function')
-def unique_mall(unique_mall_iterator) -> dict:
-    yield next(unique_mall_iterator)
-    
 
 @pytest.fixture(scope='function')
 def unit_repository(session) -> UnitRepository:
@@ -169,18 +144,115 @@ def unit_service(unit_repository) -> UnitService:
     yield service
 
 
+@pytest.fixture(scope='function')
+def account_data():
+    yield {
+        'name': 'account_name'
+    }
+
+
+@pytest.fixture(scope='function')
+def account(session, account_data):
+    with session.begin() as session:
+        account = Account(**account_data)
+        session.add(account)
+
+    yield account
+
+
+@pytest.fixture(scope='function')
+def mall_data(account):
+    yield {
+        'name': 'mall_name',
+        'account_id': account.id
+    }
+
+
+@pytest.fixture(scope='function')
+def mall(session, mall_data):
+    with session.begin() as session:
+        mall = Mall(**mall_data)
+        session.add(mall)
+
+    yield mall
+
+
+@pytest.fixture(scope='function')
+def unit_data(mall):
+    yield {
+        'name': 'unit_name',
+        'mall_id': mall.id
+    }
+
+
 @pytest.fixture(scope='session')
-def unique_unit_iterator():
-    def unique_unit_generator():
+def permanent_account_data_iterator():
+    def permanent_account_data_generator():
         i = 1
         while True:
             yield {
                 'name': f'name-{i}'
             }
             i += 1
-    yield unique_unit_generator()
+    yield permanent_account_data_generator()
 
 
 @pytest.fixture(scope='function')
-def unique_unit(unique_unit_iterator) -> dict:
-    yield next(unique_unit_iterator)
+def permanent_account_data(permanent_account_data_iterator):
+    yield next(permanent_account_data_iterator)
+
+
+@pytest.fixture(scope='function')
+def permanent_account(permanent_session, permanent_account_data):
+    with permanent_session.begin() as session:
+        account = Account(**permanent_account_data)
+        session.add(account)
+
+    yield account
+
+
+@pytest.fixture(scope='session')
+def permanent_mall_data_iterator():
+    def permanent_mall_data_generator():
+        i = 1
+        while True:
+            yield {
+                'name': f'name-{i}'
+            }
+            i += 1
+    yield permanent_mall_data_generator()
+
+
+@pytest.fixture(scope='function')
+def permanent_mall_data(permanent_mall_data_iterator, permanent_account):
+    data = next(permanent_mall_data_iterator)
+    data['account_id'] = permanent_account.id
+    yield data
+
+
+@pytest.fixture(scope='function')
+def permanent_mall(permanent_session, permanent_mall_data):
+    with permanent_session.begin() as session:
+        mall = Mall(**permanent_mall_data)
+        session.add(mall)
+
+    yield mall
+
+
+@pytest.fixture(scope='session')
+def permanent_unit_data_iterator():
+    def permanent_unit_data_generator():
+        i = 1
+        while True:
+            yield {
+                'name': f'name-{i}'
+            }
+            i += 1
+    yield permanent_unit_data_generator()
+
+
+@pytest.fixture(scope='function')
+def permanent_unit_data(permanent_unit_data_iterator, permanent_mall):
+    data = next(permanent_unit_data_iterator)
+    data['mall_id'] = permanent_mall.id
+    yield data

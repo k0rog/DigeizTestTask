@@ -15,6 +15,9 @@ class UnitService:
     def create(self, data: dict) -> Unit:
         return self._unit_repository.create(data)
 
+    def bulk_create(self, data: dict) -> None:
+        return self._unit_repository.bulk_create(data)
+
     def get_list(self, page: int, per_page: int) -> dict:
         return self._unit_repository.get_list(page, per_page)
 

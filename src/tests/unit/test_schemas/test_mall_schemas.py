@@ -7,25 +7,26 @@ from api.schemas.mall import (
     MallListSchema,
     MallUpdateSchema,
     MallRetrieveSchema,
+    MallBulkCreateSchema
 )
 
 
-ACCOUNT_ID = 1
-ACCOUNT_NAME = 'mall_name'
-
-
-ACCOUNT_DATA = {
+MALL_DATA = {
     'name': 'mall_name',
+    'account_id': 1
 }
 
 
 class TestMallCreateSchema:
+    schema_class = MallCreateSchema
+
     def test_with_valid_data(self):
-        schema = MallCreateSchema()
+        schema = self.schema_class()
 
-        data = schema.loads(json.dumps(ACCOUNT_DATA))
+        data = schema.loads(json.dumps(MALL_DATA))
 
-        assert data['name'] == ACCOUNT_DATA['name']
+        assert data['name'] == MALL_DATA['name']
+        assert data['account_id'] == MALL_DATA['account_id']
 
     @pytest.mark.parametrize(
         'field,value',
@@ -33,38 +34,37 @@ class TestMallCreateSchema:
                 ('id', 1),
         )
     )
-    def test_field_is_not_loaded(self, field, value):
-        schema = MallCreateSchema()
+    def test_for_not_loaded_fields(self, field, value):
+        schema = self.schema_class()
 
-        create_data = ACCOUNT_DATA.copy()
+        create_data = MALL_DATA.copy()
         create_data[field] = value
 
         with pytest.raises(marshmallow.exceptions.ValidationError):
             schema.loads(json.dumps(create_data))
 
-    @pytest.mark.parametrize(
-        'field,value',
-        (
-                ('id', 1),
-        )
-    )
-    def test_id_is_dumped(self, field, value):
-        schema = MallCreateSchema()
+    def test_id_is_dumped(self):
+        schema = self.schema_class()
 
-        validated_data = ACCOUNT_DATA.copy()
-        validated_data[field] = value
+        validated_data = MALL_DATA.copy()
+        validated_data['id'] = 1
 
         return_data = schema.dump(validated_data)
 
-        assert field in return_data
+        assert 'id' in return_data
 
-    @pytest.mark.parametrize('field', ('name',))
-    @pytest.mark.parametrize('value', (1,))
+    @pytest.mark.parametrize(
+        'field, value',
+        (
+                ('name', 1),
+                ('account_id', 'str')
+        )
+    )
     def test_with_wrong_type(self, field, value):
-        wrong_data = ACCOUNT_DATA.copy()
+        wrong_data = MALL_DATA.copy()
         wrong_data[field] = value
 
-        schema = MallCreateSchema()
+        schema = self.schema_class()
 
         with pytest.raises(marshmallow.exceptions.ValidationError) as exception_info:
             schema.loads(json.dumps(wrong_data))
@@ -72,52 +72,48 @@ class TestMallCreateSchema:
         error_message_dict = exception_info.value.messages
         assert len(error_message_dict) == 1
         assert field in error_message_dict
-        assert error_message_dict[field][0] == f'Not a valid string.'
+
+    def test_with_invalid_name(self):
+        wrong_data = MALL_DATA.copy()
+        wrong_data['name'] = ''.join(['_' for _ in range(257)])
+
+        schema = self.schema_class()
+
+        with pytest.raises(marshmallow.exceptions.ValidationError) as exception_info:
+            schema.loads(json.dumps(wrong_data))
+
+        error_message_dict = exception_info.value.messages
+        assert len(error_message_dict) == 1
+        assert 'name' in error_message_dict
+        assert error_message_dict['name'][0] == f'Longer than maximum length 255.'
 
 
 class TestMallUpdateSchema:
+    schema_class = MallUpdateSchema
+
     def test_with_valid_data(self):
-        schema = MallUpdateSchema()
+        schema = self.schema_class(partial=True)
 
-        data = schema.loads(json.dumps(ACCOUNT_DATA))
+        data = schema.loads(json.dumps({'name': 'mall_name'}))
 
-        assert data['name'] == ACCOUNT_DATA['name']
+        assert data['name'] == MALL_DATA['name']
 
-    @pytest.mark.parametrize(
-        'field,value',
-        (
-                ('id', 1),
-        )
-    )
-    def test_field_is_not_loaded(self, field, value):
-        schema = MallCreateSchema()
+    def test_partial(self):
+        schema = self.schema_class(partial=True)
 
-        create_data = ACCOUNT_DATA.copy()
-        create_data[field] = value
-
-        with pytest.raises(marshmallow.exceptions.ValidationError):
-            schema.loads(json.dumps(create_data))
+        data = {}
+        schema.loads(json.dumps(data))
 
     @pytest.mark.parametrize(
-        'field,value',
+        'field, value',
         (
-                ('id', 1),
+                ('name', 1),
+                ('account_id', 'str')
         )
     )
-    def test_field_is_dumped(self, field, value):
-        schema = MallCreateSchema()
-
-        validated_data = ACCOUNT_DATA.copy()
-        validated_data[field] = value
-
-        return_data = schema.dump(validated_data)
-
-        assert field in return_data
-
-    @pytest.mark.parametrize('field', ('name',))
-    @pytest.mark.parametrize('value', (1,))
     def test_with_wrong_type(self, field, value):
-        wrong_data = ACCOUNT_DATA.copy()
+        wrong_data = MALL_DATA.copy()
+        del wrong_data['account_id']
         wrong_data[field] = value
 
         schema = MallUpdateSchema()
@@ -128,25 +124,39 @@ class TestMallUpdateSchema:
         error_message_dict = exception_info.value.messages
         assert len(error_message_dict) == 1
         assert field in error_message_dict
-        assert error_message_dict[field][0] == f'Not a valid string.'
 
 
 class TestMallRetrieveSchema:
     def test_dump_schema(self):
         schema = MallRetrieveSchema()
 
-        mall_data = ACCOUNT_DATA.copy()
-        mall_data['id'] = 1
+        mall_data = MALL_DATA.copy()
+        mall_data.update({
+            'id': 1,
+            'units': [{
+                'id': 1,
+                'name': 'unit_name'
+            }, {
+                'id': 2,
+                'name': 'unit_second_name'
+            }
+            ]
+        })
 
-        retrieve_data = schema.dumps(mall_data)
+        retrieve_data = json.loads(schema.dumps(mall_data))
 
         assert 'id' in retrieve_data
         assert 'name' in retrieve_data
+        assert 'units' in retrieve_data
+        assert 'account_id' in retrieve_data
+        assert 'id' in retrieve_data['units'][0] and 'name' in retrieve_data['units'][0]
 
 
 class TestMallListSchema:
+    schema_class = MallListSchema
+
     def test_valid_load(self):
-        schema = MallListSchema()
+        schema = self.schema_class()
 
         schema.loads(json.dumps({
             'page': 1,
@@ -154,7 +164,7 @@ class TestMallListSchema:
         }))
 
     def test_with_negative_page(self):
-        schema = MallListSchema()
+        schema = self.schema_class()
         data = {
             'page': -1,
             'per_page': 10
@@ -164,7 +174,7 @@ class TestMallListSchema:
             schema.loads(json.dumps(data))
 
     def test_with_negative_per_page(self):
-        schema = MallListSchema()
+        schema = self.schema_class()
         data = {
             'page': 1,
             'per_page': -1
@@ -174,7 +184,7 @@ class TestMallListSchema:
             schema.loads(json.dumps(data))
 
     def test_with_too_big_per_page(self):
-        schema = MallListSchema()
+        schema = self.schema_class()
         data = {
             'page': 1,
             'per_page': 100
@@ -184,13 +194,34 @@ class TestMallListSchema:
             schema.loads(json.dumps(data))
 
     def test_valid_dump(self):
-        schema = MallListSchema()
+        schema = self.schema_class()
         data = {
             'total': 100,
-            'malls': [{
+            'units': [{
                 'id': i,
-                'name': f'Mall-{i}'
+                'name': f'Unit-{i}'
             } for i in range(5)],
         }
 
         schema.dumps(data)
+
+
+class TestBulkCreateSchema:
+    schema_class = MallBulkCreateSchema
+
+    def test_load(self):
+        data = {
+            'malls': [
+                {
+                    'name': 'first_mall_name',
+                    'account_id': 1
+                }, {
+                    'name': 'last_mall_name',
+                    'account_id': 2
+                }
+            ]
+        }
+
+        schema = self.schema_class()
+
+        schema.loads(json.dumps(data))

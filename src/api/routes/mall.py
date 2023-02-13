@@ -6,7 +6,24 @@ from webargs.flaskparser import use_args
 
 from api.services.mall import MallService
 from api.utils.response_serializer import serialize_response
-from api.schemas.mall import MallCreateSchema, MallUpdateSchema, MallRetrieveSchema, MallListSchema
+from api.schemas.mall import (
+    MallCreateSchema,
+    MallUpdateSchema,
+    MallRetrieveSchema,
+    MallListSchema,
+    MallBulkCreateSchema
+)
+
+
+class MallsBulkResource(Resource):
+    @inject
+    def __init__(self, service: MallService):
+        self.account_service = service
+
+    @use_args(MallBulkCreateSchema())
+    @serialize_response(None, HTTPStatus.CREATED)
+    def post(self, malls):
+        return self.account_service.bulk_create(malls)
 
 
 class MallsResource(Resource):
