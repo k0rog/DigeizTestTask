@@ -1,6 +1,6 @@
 from flask import Flask
 from flask_injector import FlaskInjector
-from injector import Injector, Module
+from injector import Injector
 
 from api.dependency_injection import SQLAlchemyModule
 from api.exceptions import (AppException, api_exception_handler,
@@ -14,7 +14,6 @@ from api.routes.unit import UnitsResource, UnitResource, UnitsBulkResource
 
 def create_app(
         config_class: object = DefaultConfig,
-        injected_modules: list[Module] = None
 ):
     app = Flask(__name__)
 
@@ -25,21 +24,8 @@ def create_app(
     app.errorhandler(AppException)(app_exception_handler)
 
     register_extensions(app)
-    register_injection_modules(app, injected_modules)
 
     return app
-
-
-def register_injection_modules(app, injected_modules):
-    default_modules = [
-        SQLAlchemyModule(sqlalchemy_url=app.config.get('SQLALCHEMY_DATABASE_URI'))
-    ]
-
-    if injected_modules is not None:
-        default_modules += injected_modules
-
-    injector = Injector(default_modules)
-    FlaskInjector(app=app, injector=injector)
 
 
 def register_extensions(app):
@@ -62,3 +48,8 @@ def register_extensions(app):
     db.init_app(app)
     migrate.init_app(app, db)
     api.init_app(app)
+
+    injector = Injector([
+        SQLAlchemyModule(sqlalchemy_url=app.config.get('SQLALCHEMY_DATABASE_URI'))
+    ])
+    FlaskInjector(app=app, injector=injector)

@@ -5,7 +5,7 @@ from api.app import create_app
 from api.config import get_config_class
 
 
-config_class = get_config_class('.env')
+config_class = get_config_class('../.env')
 app = create_app(config_class)
 
 
