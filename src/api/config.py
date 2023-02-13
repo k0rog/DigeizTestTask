@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 
 
 def choose_config_class():
-    environment = os.environ.get('ENVIRONMENT')
+    environment = os.environ.get('FLASK_ENV')
 
     if environment == 'production':
         return ProductionConfig
@@ -18,7 +18,7 @@ def get_config_class(env_filename=None):
     config_class = choose_config_class()
 
     for key in dir(config_class):
-        if key.isupper():
+        if key.isupper() and getattr(config_class, key) is None:
             setattr(config_class, key, os.environ.get(key, None))
 
     return config_class
@@ -35,4 +35,4 @@ class DevelopmentConfig(DefaultConfig):
 
 
 class ProductionConfig(DefaultConfig):
-    pass
+    PROPAGATE_EXCEPTIONS = True

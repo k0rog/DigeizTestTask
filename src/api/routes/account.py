@@ -47,8 +47,8 @@ class AccountsResource(Resource):
 
 class AccountResource(Resource):
     @inject
-    def __init__(self, repository: AccountService):
-        self.account_service = repository
+    def __init__(self, service: AccountService):
+        self.account_service = service
 
     @use_args(AccountUpdateSchema())
     @serialize_response(None, HTTPStatus.NO_CONTENT)

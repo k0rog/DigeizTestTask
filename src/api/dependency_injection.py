@@ -1,3 +1,5 @@
+import os
+
 from injector import Binder, Module, singleton
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker

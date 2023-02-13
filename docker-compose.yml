@@ -8,3 +8,17 @@ services:
       - .:/var/lib/postgresql/data
     ports:
       - "54321:5432"
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: ./.env
+    restart: on-failure
+    ports:
+      - "5001:5000"
+    volumes:
+      - ./src/api:/digeizTechTask/api
+      - ./src/main.py:/digeizTechTask/main.py
+    depends_on:
+      - db
