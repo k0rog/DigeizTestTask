@@ -11,9 +11,7 @@ class SQLAlchemyModule(Module):
         self.sqlalchemy_url = sqlalchemy_url
 
     def configure(self, binder: Binder):
-        session = sessionmaker(
-            create_engine(self.sqlalchemy_url), expire_on_commit=False
-        )
+        session = sessionmaker(create_engine(self.sqlalchemy_url), expire_on_commit=False)
         binder.bind(interface=sessionmaker, to=session, scope=singleton)
         binder.bind(interface=AccountService, to=AccountService, scope=singleton)
         binder.bind(interface=AccountRepository, to=AccountRepository, scope=singleton)

@@ -19,4 +19,4 @@ repos:
          entry: black
          language: system
          types: [python]
-         args: [--skip-string-normalization]
+         args: [--skip-string-normalization, --line-length=120]
