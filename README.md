@@ -1,4 +1,4 @@
-# Digeiz Test Task
+# Test Task
 
 ## Implemented
 - CRUD operations for three models: Account, Mall, Unit
